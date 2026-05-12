@@ -41,6 +41,7 @@ if (ctrlHeld)
     SetCapsLockState, % GetKeyState("CapsLock", "T") ? "Off" : "On"
     return
 }
+SetCapsLockState, Off
 Send, ^{Space}
 return
 

@@ -34,17 +34,15 @@
 
 ## 开机自启动
 
-### 方法一：启动文件夹
+### 一键配置（推荐）
+
+- **安装**：双击运行 `install-startup.bat`，自动创建计划任务
+- **卸载**：双击运行 `uninstall-startup.bat`，移除计划任务
+
+### 手动配置
 
 1. 按 `Win+R`，输入 `shell:startup`，回车
 2. 在此文件夹中创建 `caps-remap.ahk` 的快捷方式
-
-### 方法二：任务计划程序（推荐）
-
-1. 按 `Win+R`，输入 `taskschd.msc`，回车
-2. 创建基本任务 → 触发器选择"当用户登录时"
-3. 操作选择"启动程序"，指向 `caps-remap.ahk`
-4. 勾选"使用最高权限运行"
 
 ## 技术说明
 
@@ -56,4 +54,6 @@
 ## 文件说明
 
 - `caps-remap.ahk` - 主脚本文件
+- `install-startup.bat` - 一键配置开机自启动
+- `uninstall-startup.bat` - 一键移除开机自启动
 - `README.md` - 本说明文档
