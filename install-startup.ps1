@@ -10,13 +10,22 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit
 }
 
-# find AutoHotkey
-$ahkPath = "C:\Program Files\AutoHotkey\AutoHotkey.exe"
-if (-not (Test-Path $ahkPath)) {
-    $ahkPath = (Get-Command autohotkey.exe -ErrorAction SilentlyContinue).Source
+# find AutoHotkey v2
+$candidates = @(
+    "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe",
+    "C:\Program Files\AutoHotkey\v2\AutoHotkey32.exe",
+    "C:\Program Files\AutoHotkey\v2\AutoHotkey.exe",
+    "C:\Program Files\AutoHotkey\AutoHotkey64.exe",
+    "C:\Program Files\AutoHotkey\AutoHotkey.exe"
+)
+$ahkPath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $ahkPath) {
+    $cmd = Get-Command autohotkey.exe, AutoHotkey64.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($cmd) { $ahkPath = $cmd.Source }
 }
 if (-not $ahkPath -or -not (Test-Path $ahkPath)) {
-    Write-Host "[ERROR] AutoHotkey not found, please install AutoHotkey v1.1 first" -ForegroundColor Red
+    Write-Host "[ERROR] AutoHotkey v2 not found, please install AutoHotkey v2 first" -ForegroundColor Red
+    Write-Host "Download: https://www.autohotkey.com/"
     exit 1
 }
 
