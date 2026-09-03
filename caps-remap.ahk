@@ -5,7 +5,7 @@
 ; 功能：
 ;   - 单独按下 Caps Lock：切换输入法（Ctrl+Space）
 ;   - Ctrl + Caps Lock：切换大小写锁定
-;   - WindTerm 窗口激活时 Ctrl+Shift+Q：强杀并重启 WindTerm
+;   - WindTerm 窗口激活时 Ctrl+Shift+Q：正常退出并重启 WindTerm
 ;
 ; 使用方法：
 ;   1. 安装 AutoHotkey v2 (https://www.autohotkey.com/)
@@ -96,7 +96,7 @@ clearCapsLock2() {
 }
 
 ; -----------------------------------------------------------------------------
-; WindTerm：Ctrl+Shift+Q 强杀并重启
+; WindTerm：Ctrl+Shift+Q 正常退出并重启
 ; 仅在 WindTerm 为前台窗口时生效（#HotIf）
 ; -----------------------------------------------------------------------------
 
@@ -115,20 +115,28 @@ isWindTermActive() {
     return false
 }
 
-; 从当前窗口进程读取路径 → 强杀 → 等待 → 同路径重启
+; 从当前窗口进程读取路径 → 正常退出 → 等待结束 → 超时则强杀 → 同路径重启
 RestartWindTerm() {
     try {
         hwnd := WinGetID("A")
         exePath := WinGetProcessPath(hwnd)   ; 自动获取安装路径，无需硬编码
-        exeName := WinGetProcessName(hwnd)
         workDir := RegExReplace(exePath, "\\[^\\]+$", "")  ; exe 所在目录作工作目录
+        pid := WinGetPID(hwnd)
     } catch {
         MsgBox("无法获取 WindTerm 路径，重启失败。")
         return
     }
 
-    RunWait("taskkill /f /im " exeName, , "Hide")  ; 强杀，释放串口等资源
-    Sleep(500)
+    ; 正常退出：WM_SYSCOMMAND + SC_CLOSE，等同 Alt+F4 / 点标题栏关闭，便于保存配置
+    ; 用 DllCall 直接发到窗口句柄，避免 AHK PostMessage 误走控件查找报 Target control not found
+    if WinExist("ahk_id " hwnd) {
+        DllCall("PostMessage", "Ptr", hwnd, "UInt", 0x0112, "UInt", 0xF060, "Ptr", 0, "Ptr")
+        remainingPid := ProcessWaitClose(pid, 8)  ; 最多等 8 秒
+        if remainingPid  ; 仍未退出则强杀，避免无法重启
+            RunWait("taskkill /f /pid " remainingPid, , "Hide")
+    }
+
+    Sleep(300)  ; 等待串口等资源释放
 
     if FileExist(exePath) {
         Run(exePath, workDir)
