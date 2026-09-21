@@ -5,7 +5,7 @@
 ; 功能：
 ;   - 单独按下 Caps Lock：切换输入法（Ctrl+Space）
 ;   - Ctrl + Caps Lock：切换大小写锁定
-;   - WindTerm 窗口激活时 Ctrl+Shift+Q：正常退出并重启 WindTerm
+;   - 终端程序窗口激活时 Ctrl+Shift+Q：正常退出并重启（WindTerm / Tabby 等）
 ;
 ; 使用方法：
 ;   1. 安装 AutoHotkey v2 (https://www.autohotkey.com/)
@@ -45,7 +45,7 @@ if otherPids.Length
     Sleep(300)  ; 等待进程完全退出、资源释放
 
 ; 安装键盘钩子（v2 用函数，非 v1 的 #InstallKeybdHook 指令）
-; 配合 WindTerm 热键的 #UseHook / $ 前缀，在应用收到按键前抢先拦截
+; 配合终端程序热键的 #UseHook / $ 前缀，在应用收到按键前抢先拦截
 InstallKeybdHook()
 
 ; -----------------------------------------------------------------------------
@@ -96,34 +96,42 @@ clearCapsLock2() {
 }
 
 ; -----------------------------------------------------------------------------
-; WindTerm：Ctrl+Shift+Q 正常退出并重启
-; 仅在 WindTerm 为前台窗口时生效（#HotIf）
+; 终端程序：Ctrl+Shift+Q 正常退出并重启
+; 仅在下方列表中的程序为前台窗口时生效（#HotIf）
 ; -----------------------------------------------------------------------------
 
-#HotIf isWindTermActive()
-#UseHook              ; 强制键盘钩子，不用 RegisterHotKey，避免按键漏到 WindTerm
+; 支持的进程名，按需增删（自动读取路径，无需硬编码安装目录）
+RESTARTABLE_APPS := ["WindTerm.exe", "Tabby.exe"]
+
+#HotIf isRestartableAppActive()
+#UseHook              ; 强制键盘钩子，不用 RegisterHotKey，避免按键漏到目标程序
 #InputLevel 1
-$^+q::RestartWindTerm()  ; $ 前缀：钩子热键，拦截按键不向下传递
+$^+q::RestartActiveApp()  ; $ 前缀：钩子热键，拦截按键不向下传递
 #InputLevel 0
 #UseHook False
 #HotIf
 
-; 判断当前前台窗口是否属于 WindTerm 进程
-isWindTermActive() {
-    try
-        return WinGetProcessName("A") = "WindTerm.exe"
+; 判断当前前台窗口是否属于可重启的终端程序
+isRestartableAppActive() {
+    global RESTARTABLE_APPS
+    try {
+        name := WinGetProcessName("A")
+        for app in RESTARTABLE_APPS
+            if app = name
+                return true
+    }
     return false
 }
 
 ; 从当前窗口进程读取路径 → 正常退出 → 等待结束 → 超时则强杀 → 同路径重启
-RestartWindTerm() {
+RestartActiveApp() {
     try {
         hwnd := WinGetID("A")
         exePath := WinGetProcessPath(hwnd)   ; 自动获取安装路径，无需硬编码
         workDir := RegExReplace(exePath, "\\[^\\]+$", "")  ; exe 所在目录作工作目录
         pid := WinGetPID(hwnd)
     } catch {
-        MsgBox("无法获取 WindTerm 路径，重启失败。")
+        MsgBox("无法获取程序路径，重启失败。")
         return
     }
 
@@ -141,7 +149,7 @@ RestartWindTerm() {
     if FileExist(exePath) {
         Run(exePath, workDir)
     } else {
-        MsgBox("未找到 WindTerm 可执行文件：`n" exePath)
+        MsgBox("未找到可执行文件：`n" exePath)
     }
 }
 
