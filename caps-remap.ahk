@@ -6,6 +6,13 @@
 ;   - 单独按下 Caps Lock：切换输入法（Ctrl+Space）
 ;   - Ctrl + Caps Lock：切换大小写锁定
 ;   - 终端程序窗口激活时 Ctrl+Shift+Q：正常退出并重启（WindTerm / Tabby 等）
+;   - Ctrl + Win + `：切换任务栏「自动隐藏任务栏」开关
+;
+; 文件结构（自上而下，与上表功能顺序一致）：
+;   1. 启动 — 提权、替换旧实例、InstallKeybdHook（入口逻辑，不归属某一热键）
+;   2. 功能模块 — 每块为「分区标题 → 热键或 #HotIf 注册 → 本块专用函数」；
+;      不在 A 块的 #HotIf 与 A 块的实现函数之间插入 B 块代码
+;   3. 工具函数 — 仅启动阶段或其它模块共用的辅助逻辑（如 GetOtherScriptPids）
 ;
 ; 使用方法：
 ;   1. 安装 AutoHotkey v2 (https://www.autohotkey.com/)
@@ -151,6 +158,35 @@ RestartActiveApp() {
     } else {
         MsgBox("未找到可执行文件：`n" exePath)
     }
+}
+
+; -----------------------------------------------------------------------------
+; 任务栏：Ctrl+Win+` 切换自动隐藏
+; -----------------------------------------------------------------------------
+
+^#`::ToggleTaskbarAutoHide()
+
+ToggleTaskbarAutoHide() {
+    static ABM_GETSTATE := 4, ABM_SETSTATE := 10, ABS_AUTOHIDE := 1, ABS_ALWAYSONTOP := 2
+    size := 2 * A_PtrSize + 2 * 4 + 16 + A_PtrSize
+    for hwnd in GetTaskbarHwnds() {
+        data := Buffer(size, 0)
+        NumPut("UInt", size, data)
+        NumPut("Ptr", hwnd, data, A_PtrSize)
+        state := DllCall("Shell32\SHAppBarMessage", "UInt", ABM_GETSTATE, "Ptr", data, "UInt")
+        newState := (state & ABS_AUTOHIDE) ? ABS_ALWAYSONTOP : ABS_AUTOHIDE
+        NumPut("UInt", newState, data, size - A_PtrSize)
+        DllCall("Shell32\SHAppBarMessage", "UInt", ABM_SETSTATE, "Ptr", data)
+    }
+}
+
+GetTaskbarHwnds() {
+    hwnds := []
+    if hwnd := WinExist("ahk_class Shell_TrayWnd")
+        hwnds.Push(hwnd)
+    for hwnd in WinGetList("ahk_class Shell_SecondaryTrayWnd")
+        hwnds.Push(hwnd)
+    return hwnds
 }
 
 ; -----------------------------------------------------------------------------
